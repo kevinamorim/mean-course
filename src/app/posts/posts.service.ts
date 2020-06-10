@@ -4,6 +4,7 @@ import { Subject } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 
 @Injectable({ providedIn: 'root' })
 export class PostsService {
@@ -39,8 +40,14 @@ export class PostsService {
         return this.postsChanged.asObservable();
     }
 
-    addPost(post: Post) {
-        this.http.post<{ message: string, id: string }>(this.url, post)
+    addPost(post: Post, image: File) {
+        const postData = new FormData();
+
+        postData.append("title", post.title);
+        postData.append("content", post.content);
+        postData.append("image", image, post.title);
+
+        this.http.post<{ message: string, id: string }>(this.url, postData)
             .subscribe((responseData) => {
                 post.id = responseData.id;
                 this.posts.push(post);
