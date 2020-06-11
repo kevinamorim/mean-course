@@ -27,6 +27,8 @@ export class PostCreateComponent implements OnInit {
         private route: ActivatedRoute) {}
 
     ngOnInit(): void {
+        this.buildForm();
+
         this.paramsSub = this.route.paramMap.subscribe((paramMap: ParamMap) => {
             if (paramMap.has('id')) {
                 this.editMode = true;
@@ -34,10 +36,11 @@ export class PostCreateComponent implements OnInit {
                 this.isLoading = true;
                 this.postsService.getPost(this.postId).subscribe(post => {
                     this.isLoading = false;
-                    this.post = { id: post._id, title: post.title, content: post.content };
+                    this.post = { id: post._id, title: post.title, content: post.content, imagePath: post.imagePath };
                     this.form.setValue({
                         'title': this.post.title,
-                        'content': this.post.content
+                        'content': this.post.content,
+                        'image': this.post.imagePath
                     });
                 });
             } else {
@@ -46,8 +49,6 @@ export class PostCreateComponent implements OnInit {
                 this.post = null;
             }
         });
-
-        this.buildForm();
     }
 
     private buildForm(): void {
@@ -65,10 +66,9 @@ export class PostCreateComponent implements OnInit {
 
         this.isLoading = true;
         if (this.editMode) {
-            const post = new Post(null, this.form.value.title, this.form.value.content);
-            this.postsService.updatePost(this.postId, post);
+            this.postsService.updatePost(this.postId, this.form.value.title, this.form.value.content, this.form.value.image);
         } else {
-            const post = new Post(null, this.form.value.title, this.form.value.content);
+            const post = new Post(null, this.form.value.title, this.form.value.content, null);
             this.postsService.addPost(post, this.form.value['image']);
         }
         
