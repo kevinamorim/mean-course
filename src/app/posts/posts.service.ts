@@ -9,27 +9,35 @@ import { Title } from '@angular/platform-browser';
 @Injectable({ providedIn: 'root' })
 export class PostsService {
     private posts: Post[] = [];
-    private postsChanged = new Subject<Post[]>();
+    private postsChanged = new Subject<{ posts: Post[], totalPosts: number }>();
     url = 'http://localhost:3000/api/posts';
 
     constructor(private http: HttpClient,
         private router: Router) {}
 
-    getPosts() {
-        return this.http.get<{ message:string, posts: any }>(this.url)
+    getPosts(postsPerPage: number, currentPage: number) {
+        const queryParams = `?pagesize=${postsPerPage}&page=${currentPage}`;
+        return this.http.get<{ message:string, posts: any, totalPosts: number }>(this.url + queryParams)
             .pipe(map((postData) => {
-                return postData.posts.map(post => {
-                    return {
-                        title: post.title,
-                        content: post.content,
-                        id: post._id,
-                        imagePath: post.imagePath
-                    };
-                });
+                return { 
+                    posts: postData.posts.map(post => {
+                        return {
+                            title: post.title,
+                            content: post.content,
+                            id: post._id,
+                            imagePath: post.imagePath
+                        };
+                    }),
+                    totalPosts: postData.totalPosts 
+                };
             }))
-            .subscribe((transformedPosts) => {
-                this.posts = transformedPosts;
-                this.postsChanged.next([...this.posts]);
+            .subscribe((transformedPostsData) => {
+                this.posts = transformedPostsData.posts;
+                this.postsChanged.next(
+                    { 
+                        posts: [...this.posts], 
+                        totalPosts: transformedPostsData.totalPosts 
+                    });
             });
     }
 
@@ -49,10 +57,7 @@ export class PostsService {
         postData.append("image", image, post.title);
 
         this.http.post<{ message: string, post: Post }>(this.url, postData)
-            .subscribe((responseData) => {
-                post.id = responseData.post.id;
-                this.posts.push(post);
-                this.postsChanged.next([...this.posts]);
+            .subscribe(() => {
                 this.router.navigate(['/']);
             });
     }
@@ -70,28 +75,12 @@ export class PostsService {
         }
 
         this.http.put(this.url + '/' + id, postData)
-            .subscribe(res => {
-                const updatedPosts = [...this.posts];
-                const oldPostIndex = updatedPosts.findIndex(p => p.id === id);
-                const post: Post = {
-                    id: id,
-                    title: title,
-                    content: content,
-                    imagePath: ''
-                };
-                updatedPosts[oldPostIndex] = post;
-                this.posts = updatedPosts;
-                this.postsChanged.next([...this.posts]);
+            .subscribe(() => {
                 this.router.navigate(['/']);
             });
     }
 
     deletePost(id: string) {
-        this.http.delete(this.url + '/' + id)
-            .subscribe(() => {
-                const updatedPosts = this.posts.filter(post => post.id !== id);
-                this.posts = updatedPosts;
-                this.postsChanged.next([...this.posts]);
-            });
+        return this.http.delete(this.url + '/' + id);
     }
 }
