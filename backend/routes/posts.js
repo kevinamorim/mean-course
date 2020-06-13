@@ -3,6 +3,8 @@ const multer = require('multer');
 
 const Post = require('../models/post');
 
+const checkAuth = require('../middleware/check-auth');
+
 const router = express.Router();
 
 const MIME_TYPE_MAP = {
@@ -30,14 +32,19 @@ const storage = multer.diskStorage({
     }
 });
 
-router.post('', multer({storage: storage}).single("image"), (req, res, next) => {
+router.post(
+    '',
+    checkAuth,
+    multer({storage: storage}).single("image"),
+    (req, res, next) => {
 
     const url = req.protocol + '://' + req.get('host');
     
     const post = new Post({
         title: req.body.title,
         content: req.body.content,
-        imagePath: url + '/images/' + req.file.filename
+        imagePath: url + '/images/' + req.file.filename,
+        creator: req.userData.userId
     });
 
     post.save()
@@ -49,10 +56,15 @@ router.post('', multer({storage: storage}).single("image"), (req, res, next) => 
                     id: createdPost._id
                 }
             });
+        })
+        .catch(error => {
+            res.status(500).json({
+                message: 'Creating a post failed!'
+            });
         });
 });
 
-router.put('/:id', multer({storage: storage}).single("image"), (req, res, next) => {
+router.put('/:id', checkAuth, multer({storage: storage}).single("image"), (req, res, next) => {
 
     let imagePath = req.body.imagePath;
     if (req.file) {
@@ -64,15 +76,26 @@ router.put('/:id', multer({storage: storage}).single("image"), (req, res, next) 
         _id: req.params.id,
         title: req.body.title,
         content: req.body.content,
-        imagePath: imagePath
+        imagePath: imagePath,
+        router: req.userData.userId
     });
 
-    console.log(post);
-
-    Post.updateOne({ _id: req.params.id }, post)
+    Post.updateOne({ _id: req.params.id, creator: req.userData.userId }, post)
         .then(result => {
-            res.status(200).json({
-                message: 'Update successful.'
+            if (result.nModified > 0) {
+                res.status(200).json({
+                    message: 'Update successful.'
+                });
+            } else {
+                res.status(401).json({
+                    message: 'Unauthorized'
+                });
+            }
+
+        })
+        .catch(error => {
+            res.status(500).json({
+                message: 'Error updating post.'
             });
         });
 });
@@ -103,6 +126,11 @@ router.get('', (req, res, next) => {
                 posts: fetchedPosts,
                 totalPosts: count
             });
+        })
+        .catch(error => {
+            res.status(500).json(error => {
+                message: 'Fetching posts failed.'
+            });
         });
 });
 
@@ -116,13 +144,31 @@ router.get('/:id', (req, res, next) => {
                     message: 'Post not found.'
                 });
             }
+        })
+        .catch(error => {
+            res.status(500).json({
+                message: 'Could not fetch post.'
+            });
         });
 });
 
-router.delete('/:id', (req, res, next) => {
-    Post.deleteOne({ _id: req.params.id })
+router.delete('/:id', checkAuth, (req, res, next) => {
+    Post.deleteOne({ _id: req.params.id, creator: req.userData.userId })
         .then(result => {
-            res.status(200).json({ message: 'Post deleted;' });
+            if (result.n > 0) {
+                res.status(200).json({
+                    message: 'Delete successful.'
+                });
+            } else {
+                res.status(401).json({
+                    message: 'Unauthorized'
+                });
+            }
+        })
+        .catch(error => {
+            res.status(500).json({
+                message: 'Error deleting post'
+            });
         });   
 });
 

@@ -4,7 +4,6 @@ import { Subject } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Title } from '@angular/platform-browser';
 
 @Injectable({ providedIn: 'root' })
 export class PostsService {
@@ -25,7 +24,8 @@ export class PostsService {
                             title: post.title,
                             content: post.content,
                             id: post._id,
-                            imagePath: post.imagePath
+                            imagePath: post.imagePath,
+                            creator: post.creator
                         };
                     }),
                     totalPosts: postData.totalPosts 
@@ -42,7 +42,7 @@ export class PostsService {
     }
 
     getPost(id: string) {
-        return this.http.get<{ _id: string, title: string, content: string, imagePath: string }>(this.url + '/' + id);
+        return this.http.get<{ _id: string, title: string, content: string, imagePath: string, creator: string }>(this.url + '/' + id);
     }
 
     getPostUpdateListener() {
@@ -71,7 +71,7 @@ export class PostsService {
             postData.append('content', content);
             postData.append('image', image, title);
         } else {
-            postData = { id: id, title: title, content: content, imagePath: image};
+            postData = { id: id, title: title, content: content, imagePath: image, creator: null};
         }
 
         this.http.put(this.url + '/' + id, postData)
